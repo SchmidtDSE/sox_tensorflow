@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sox_gpu"
+version = "0.0.1"
+readme = "README.md"
+dependencies = []
+
+[tool.setuptools]
+packages = [
+	"sox_gpu",
+]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64", "osx-64", "linux-aarch64"]
+
+[tool.pixi.pypi-dependencies]
+sox_gpu = { path = ".", editable = true }
+soundfile = ">=0.12.0"
+soxr = ">=0.3.0"
+
+# Dependencies
+[tool.pixi.target.linux-64.pypi-dependencies]
+tensorflow = ">=2.18.0"
+tf_keras = "*"
+
+[tool.pixi.target.osx-64.pypi-dependencies]
+tensorflow = ">=2.16.0,<2.17.0"
+tf_keras = ">=2.16.0,<3"
+
+[tool.pixi.target.linux-aarch64.pypi-dependencies]
+tensorflow = ">=2.18.0"
+tf_keras = "*"
+
+[tool.pixi.target.osx-arm64.pypi-dependencies]
+tensorflow-macos = ">=2.16.0,<2.17.0"
+tensorflow-metal = ">=1.2.0,<2"
+tf_keras = ">=2.16.0,<3"
+
+
+[tool.pixi.dependencies]
+python = ">=3.11,<3.12"
+numpy = ">=1.26.0,<1.27"
+pillow = ">=10.0.0"
+
