@@ -22,7 +22,6 @@ import os
 import subprocess
 import tempfile
 import numpy as np
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -34,44 +33,10 @@ try:
 except ImportError:
     raise ImportError(TF_ERROR)
 
-# Try to use soxr, fall back to sox binary
-try:
-    import soxr as _soxr
-    _resample = _resample_soxr
-except ImportError as e:
-    if REQUIRE_SOXR:
-        raise e
-    else:
-        _resample = _resample_sox_binary
 
 # ==================================================================================================
 # PUBLIC TYPES
 # ==================================================================================================
-
-
-@dataclass
-class AudioData:
-    """
-    Container for audio data with metadata.
-
-    Attributes:
-        samples: Audio samples as numpy array or TensorFlow tensor
-        sample_rate: Sample rate in Hz
-        channels: Number of audio channels
-    """
-
-    samples: Union[np.ndarray, tf.Tensor]
-    sample_rate: int
-    channels: int = 1
-
-    @property
-    def duration(self) -> float:
-        """Total duration in seconds."""
-        if isinstance(self.samples, tf.Tensor):
-            n_samples = self.samples.shape[0]
-        else:
-            n_samples = self.samples.shape[0] if self.samples.ndim > 1 else len(self.samples)
-        return n_samples / self.sample_rate
 
 
 # ==================================================================================================
@@ -80,7 +45,7 @@ class AudioData:
 
 
 def tf_sox_spectrogram(
-    audio_array: Union[tf.Tensor, np.ndarray, AudioData],
+    audio_array: Union[tf.Tensor, np.ndarray],
     shape: Tuple[int, int],
     dest: Optional[Union[str, Path]] = None,
     segment: Optional[int] = None,
@@ -99,7 +64,7 @@ def tf_sox_spectrogram(
     Uses TensorFlow operations for GPU acceleration where available.
 
     Args:
-        audio_array: Audio data as TensorFlow tensor, numpy array, or AudioData object.
+        audio_array: Audio data as TensorFlow tensor or numpy array.
             Expects float32/float64 in [-1, 1] or int32 (sox format).
         shape: Output shape as (height, width). Height determines frequency resolution
             (DFT size = 2 * (height - 1)), width determines time resolution.
@@ -172,26 +137,17 @@ def tf_sox_spectrogram(
 
 
 def _extract_audio_samples(
-    audio_array: Union[tf.Tensor, np.ndarray, AudioData],
+    audio_array: Union[tf.Tensor, np.ndarray],
     sample_rate: Optional[int],
     segment: Optional[int],
     segment_duration: Optional[float],
     segment_overlap: Optional[float],
 ) -> Tuple[Union[tf.Tensor, np.ndarray], int]:
     """Extract and validate audio samples from input."""
-    # Handle AudioData
-    if isinstance(audio_array, AudioData):
-        sr = audio_array.sample_rate
-        samples = audio_array.samples
-        if isinstance(samples, tf.Tensor) and samples.ndim > 1:
-            samples = samples[:, 0]
-        elif isinstance(samples, np.ndarray) and samples.ndim > 1:
-            samples = samples[:, 0]
-    else:
-        if sample_rate is None:
-            raise ValueError("sample_rate is required for tensor/array input")
-        sr = sample_rate
-        samples = audio_array
+    if sample_rate is None:
+        raise ValueError("sample_rate is required for tensor/array input")
+    sr = sample_rate
+    samples = audio_array
 
     # Handle segmentation
     if segment is not None:
@@ -285,6 +241,15 @@ def _resample_sox_binary(
     return tf.constant(resampled_float, dtype=tf.float64)
 
 
+# Try to use soxr, fall back to sox binary
+try:
+    import soxr as _soxr
+    _resample = _resample_soxr
+except ImportError as e:
+    if REQUIRE_SOXR:
+        raise e
+    else:
+        _resample = _resample_sox_binary
 
 
 # ==================================================================================================
