@@ -2877,7 +2877,7 @@ packages:
 - pypi: ./
   name: sox-gpu
   version: 0.0.1
-  sha256: 6ebef8a565cb918d4fec80bee38e93dfc0dbf598b70de0c614155bd7538f9be0
+  sha256: 392ac414bb5063e9d23d6b2186579c5697451c820b915a410a755b762e1ccfd4
 - pypi: https://files.pythonhosted.org/packages/64/dc/e8cbd100b652697cc9865dbed08832e7e135ff533f453eb6db9e6168d153/soxr-1.0.0-cp311-cp311-macosx_11_0_arm64.whl
   name: soxr
   version: 1.0.0

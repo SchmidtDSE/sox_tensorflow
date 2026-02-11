@@ -40,9 +40,7 @@ tensorflow-macos = ">=2.16.0,<2.17.0"
 tensorflow-metal = ">=1.2.0,<2"
 tf_keras = ">=2.16.0,<3"
 
-
 [tool.pixi.dependencies]
 python = ">=3.11,<3.12"
 numpy = ">=1.26.0,<1.27"
 pillow = ">=10.0.0"
-

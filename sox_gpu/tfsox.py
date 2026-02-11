@@ -24,26 +24,14 @@ import tempfile
 import numpy as np
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
-
-REQUIRE_SOXR: bool = True
-TF_ERROR: str = "TensorFlow is required for this module. Install with: pip install tensorflow"
-
-try:
-    import tensorflow as tf
-except ImportError:
-    raise ImportError(TF_ERROR)
+import soxr
+import soundfile as sf
+import tensorflow as tf
 
 
-# ==================================================================================================
-# PUBLIC TYPES
-# ==================================================================================================
-
-
-# ==================================================================================================
-# PUBLIC API
-# ==================================================================================================
-
-
+#
+# PUBLIC
+#
 def tf_sox_spectrogram(
     audio_array: Union[tf.Tensor, np.ndarray],
     shape: Tuple[int, int],
@@ -130,6 +118,58 @@ def tf_sox_spectrogram(
     _write_png_tf(pixels, y_size, str(dest_path))
     return str(dest_path)
 
+def spectrogram_from_flac(
+    flac_path: str,
+    start_time: float,
+    duration: float = 12.0,
+    shape: Tuple[int, int] = (257, 1000),
+    dest: Optional[Union[str, Path]] = None,
+    db_range: int = 90,
+) -> Union[tf.Tensor, str]:
+    """
+    Generate spectrogram directly from FLAC file using TensorFlow.
+
+    Args:
+        flac_path: Path to FLAC file
+        start_time: Start time in seconds
+        duration: Duration in seconds
+        shape: Output shape as (height, width)
+        dest: Optional output path for PNG
+        db_range: Dynamic range in dB
+
+    Returns:
+        If dest is None: TensorFlow tensor (uint8)
+        If dest is provided: path to saved PNG
+    """
+
+    info = sf.info(flac_path)
+    sample_rate = info.samplerate
+
+    start_sample = round(start_time * sample_rate)
+    num_samples = round(duration * sample_rate)
+
+    samples, sr = sf.read(
+        flac_path,
+        start=start_sample,
+        frames=num_samples,
+        dtype="float64",
+        always_2d=True,
+    )
+
+    # Extract first channel
+    mono_samples = samples[:, 0]
+
+    # Convert to TensorFlow tensor
+    audio_tensor = tf.constant(mono_samples, dtype=tf.float64)
+
+    return tf_sox_spectrogram(
+        audio_array=audio_tensor,
+        shape=shape,
+        dest=dest,
+        sample_rate=sample_rate,
+        db_range=db_range,
+    )
+
 
 # ==================================================================================================
 # INTERNAL: Audio Processing
@@ -161,7 +201,7 @@ def _extract_audio_samples(
     return samples, sr
 
 
-def _resample_soxr(
+def _resample(
     samples: tf.Tensor,
     in_rate: int,
     out_rate: int,
@@ -181,8 +221,6 @@ def _resample_soxr(
     Returns:
         Resampled audio as TensorFlow tensor (float64)
     """
-    import soxr
-
     # Convert to numpy for soxr processing
     samples_np = samples.numpy()
 
@@ -193,63 +231,6 @@ def _resample_soxr(
     resampled = np.clip(resampled, -1.0, 1.0)
 
     return tf.constant(resampled, dtype=tf.float64)
-
-
-def _resample_sox_binary(
-    samples: tf.Tensor,
-    in_rate: int,
-    out_rate: int,
-) -> tf.Tensor:
-    """
-    Resample audio using sox binary (fallback if soxr not available).
-
-    Note: This is slower than soxr but provides exact matching with sox output.
-    """
-    # Convert to numpy for sox processing
-    samples_np = samples.numpy()
-
-    # Convert to int32 for sox
-    samples_int32 = np.round(samples_np * 2147483648.0).astype(np.int32)
-
-    with tempfile.NamedTemporaryFile(suffix=".raw", delete=False) as f_in:
-        input_path = f_in.name
-        samples_int32.tofile(f_in)
-
-    with tempfile.NamedTemporaryFile(suffix=".raw", delete=False) as f_out:
-        output_path = f_out.name
-
-    try:
-        cmd = [
-            "sox",
-            "-t", "raw", "-r", str(in_rate), "-e", "signed", "-b", "32", "-c", "1",
-            input_path,
-            "-t", "raw", "-e", "signed", "-b", "32",
-            output_path,
-            "rate", str(out_rate),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if result.returncode != 0:
-            raise RuntimeError(f"sox rate effect failed: {result.stderr}")
-
-        resampled_int32 = np.fromfile(output_path, dtype=np.int32)
-        resampled_float = resampled_int32.astype(np.float64) / 2147483648.0
-
-    finally:
-        os.unlink(input_path)
-        os.unlink(output_path)
-
-    return tf.constant(resampled_float, dtype=tf.float64)
-
-
-# Try to use soxr, fall back to sox binary
-try:
-    import soxr as _soxr
-    _resample = _resample_soxr
-except ImportError as e:
-    if REQUIRE_SOXR:
-        raise e
-    else:
-        _resample = _resample_sox_binary
 
 
 # ==================================================================================================
@@ -598,62 +579,3 @@ def _write_png_tf(pixels: tf.Tensor, y_size: int, output_path: str) -> None:
     img = Image.fromarray(pixels_np, mode='P')
     img.putpalette(palette)
     img.save(output_path)
-
-
-# ==================================================================================================
-# CONVENIENCE FUNCTIONS
-# ==================================================================================================
-
-
-def spectrogram_from_flac(
-    flac_path: str,
-    start_time: float,
-    duration: float = 12.0,
-    shape: Tuple[int, int] = (257, 1000),
-    dest: Optional[Union[str, Path]] = None,
-    db_range: int = 90,
-) -> Union[tf.Tensor, str]:
-    """
-    Generate spectrogram directly from FLAC file using TensorFlow.
-
-    Args:
-        flac_path: Path to FLAC file
-        start_time: Start time in seconds
-        duration: Duration in seconds
-        shape: Output shape as (height, width)
-        dest: Optional output path for PNG
-        db_range: Dynamic range in dB
-
-    Returns:
-        If dest is None: TensorFlow tensor (uint8)
-        If dest is provided: path to saved PNG
-    """
-    import soundfile as sf
-
-    info = sf.info(flac_path)
-    sample_rate = info.samplerate
-
-    start_sample = round(start_time * sample_rate)
-    num_samples = round(duration * sample_rate)
-
-    samples, sr = sf.read(
-        flac_path,
-        start=start_sample,
-        frames=num_samples,
-        dtype="float64",
-        always_2d=True,
-    )
-
-    # Extract first channel
-    mono_samples = samples[:, 0]
-
-    # Convert to TensorFlow tensor
-    audio_tensor = tf.constant(mono_samples, dtype=tf.float64)
-
-    return tf_sox_spectrogram(
-        audio_array=audio_tensor,
-        shape=shape,
-        dest=dest,
-        sample_rate=sample_rate,
-        db_range=db_range,
-    )
