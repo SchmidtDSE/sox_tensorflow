@@ -2,18 +2,18 @@
 Sox-compatible spectrogram generation using TensorFlow.
 
 This module provides a TensorFlow implementation that generates spectrograms matching sox output
-with 99.99%+ pixel accuracy. The main entry point is `tf_sox_spectrogram()`.
+with 99.99%+ pixel accuracy. The main entry point is `spectrogram()`.
 
 Example usage:
     import tensorflow as tf
-    from tensorflow_sox_spectrogram import tf_sox_spectrogram
+    from tensorflow_sox_spectrogram import spectrogram
 
     # From TensorFlow tensor
     audio_tensor = tf.random.normal([96000])  # 12 seconds at 8kHz
-    spectrogram = tf_sox_spectrogram(audio_tensor, shape=(257, 1000), sample_rate=8000)
+    spectrogram = spectrogram(audio_tensor, shape=(257, 1000), sample_rate=8000)
 
     # From numpy array (converted internally)
-    spectrogram = tf_sox_spectrogram(audio_array, shape=(257, 1000), sample_rate=48000)
+    spectrogram = spectrogram(audio_array, shape=(257, 1000), sample_rate=48000)
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ def spectrogram_from_flac(
         segment=segment,
         duration=duration,
         channel=channel)
-    return tf_sox_spectrogram(
+    return spectrogram(
         audio_array=audio_tensor,
         shape=shape,
         dest=dest,
@@ -126,7 +126,7 @@ def spectrogram_from_flac(
     )
 
 
-def tf_sox_spectrogram(
+def spectrogram(
     audio_array: Union[tf.Tensor, np.ndarray],
     shape: Tuple[int, int],
     dest: Optional[Union[str, Path]] = None,
@@ -166,7 +166,7 @@ def tf_sox_spectrogram(
 
     Example:
         >>> audio = tf.random.normal([96000], dtype=tf.float32)  # 12s at 8kHz
-        >>> pixels = tf_sox_spectrogram(audio, shape=(257, 1000), sample_rate=8000)
+        >>> pixels = spectrogram(audio, shape=(257, 1000), sample_rate=8000)
         >>> pixels.shape
         TensorShape([257, 1000])
     """
