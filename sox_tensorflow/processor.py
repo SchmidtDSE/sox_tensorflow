@@ -30,8 +30,102 @@ import tensorflow as tf
 
 
 #
+# CONSTANTS
+#
+DEFAULT_DURATION: int = 12
+DEFAULT_SHAPE: Tuple[int, int] = (257, 1000)
+DEFAULT_DB_RANGE: int = 90
+
+
+#
 # PUBLIC
 #
+def load_audio(
+    flac_path: str,
+    start_time: Optional[float] = None,
+    segment: Optional[int] = None,
+    duration: Optional[float] = None,
+    channel: Optional[int] = 0
+) -> Union[tf.Tensor, str]:
+    """
+    utility wrapper to read flac file into tf-tensor using soundfile
+
+    Args:
+        flac_path: Path to FLAC file
+        start_time: Start time in seconds 
+        segment (int): overrides <start_time> to be the <segment>-th (0-based) <duration> clip
+        duration: Duration in seconds
+        channel: channel to extract (0 for mono)
+
+    Returns (tuple):
+        tf-tensor, sample-rate
+    """
+    if segment is not None:
+        start_time = segment * duration
+    if duration is None:
+        frames = -1
+    else:
+        info = sf.info(flac_path)
+        sample_rate = info.samplerate
+        start_sample = round(start_time * sample_rate)
+        num_samples = round(duration * sample_rate)
+
+    samples, sr = sf.read(
+        flac_path,
+        start=start_sample,
+        frames=num_samples,
+        dtype="float64",
+        always_2d=True,
+    )
+
+    if channel is not None:
+        samples = samples[:, channel]
+
+    return tf.constant(samples, dtype=tf.float64), sr
+
+
+def spectrogram_from_flac(
+    flac_path: str,
+    start_time: Optional[float] = None,
+    segment: Optional[int] = None,
+    duration: Optional[float] = DEFAULT_DURATION,
+    channel: Optional[int] = 0,
+    shape: Tuple[int, int] = DEFAULT_SHAPE,
+    dest: Optional[Union[str, Path]] = None,
+    db_range: int = DEFAULT_DB_RANGE,
+) -> Union[tf.Tensor, str]:
+    """
+    Generate spectrogram directly from FLAC file using TensorFlow.
+
+    Args:
+        flac_path: Path to FLAC file
+        start_time: Start time in seconds
+        segment (int): overrides <start_time> to be the <segment>-th (0-based) <duration> clip
+        duration: Duration in seconds
+        channel: channel to extract (0 for mono)
+        shape: Output shape as (height, width)
+        dest: Optional output path for PNG
+        db_range: Dynamic range in dB
+
+    Returns:
+        If dest is None: TensorFlow tensor (uint8)
+        If dest is provided: path to saved PNG
+    """
+    audio_tensor, sample_rate = load_audio(
+        flac_path=flac_path,
+        start_time=start_time,
+        segment=segment,
+        duration=duration,
+        channel=channel)
+    return tf_sox_spectrogram(
+        audio_array=audio_tensor,
+        shape=shape,
+        dest=dest,
+        sample_rate=sample_rate,
+        db_range=db_range,
+    )
+
+
 def tf_sox_spectrogram(
     audio_array: Union[tf.Tensor, np.ndarray],
     shape: Tuple[int, int],
@@ -118,57 +212,6 @@ def tf_sox_spectrogram(
     _write_png_tf(pixels, y_size, str(dest_path))
     return str(dest_path)
 
-def spectrogram_from_flac(
-    flac_path: str,
-    start_time: float,
-    duration: float = 12.0,
-    shape: Tuple[int, int] = (257, 1000),
-    dest: Optional[Union[str, Path]] = None,
-    db_range: int = 90,
-) -> Union[tf.Tensor, str]:
-    """
-    Generate spectrogram directly from FLAC file using TensorFlow.
-
-    Args:
-        flac_path: Path to FLAC file
-        start_time: Start time in seconds
-        duration: Duration in seconds
-        shape: Output shape as (height, width)
-        dest: Optional output path for PNG
-        db_range: Dynamic range in dB
-
-    Returns:
-        If dest is None: TensorFlow tensor (uint8)
-        If dest is provided: path to saved PNG
-    """
-
-    info = sf.info(flac_path)
-    sample_rate = info.samplerate
-
-    start_sample = round(start_time * sample_rate)
-    num_samples = round(duration * sample_rate)
-
-    samples, sr = sf.read(
-        flac_path,
-        start=start_sample,
-        frames=num_samples,
-        dtype="float64",
-        always_2d=True,
-    )
-
-    # Extract first channel
-    mono_samples = samples[:, 0]
-
-    # Convert to TensorFlow tensor
-    audio_tensor = tf.constant(mono_samples, dtype=tf.float64)
-
-    return tf_sox_spectrogram(
-        audio_array=audio_tensor,
-        shape=shape,
-        dest=dest,
-        sample_rate=sample_rate,
-        db_range=db_range,
-    )
 
 
 # ==================================================================================================

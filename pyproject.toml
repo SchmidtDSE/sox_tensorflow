@@ -3,14 +3,14 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sox_gpu"
+name = "sox_tensorflow"
 version = "0.0.1"
 readme = "README.md"
 dependencies = []
 
 [tool.setuptools]
 packages = [
-	"sox_gpu",
+	"sox_tensorflow",
 ]
 
 [tool.pixi.workspace]
@@ -18,7 +18,7 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "osx-64", "linux-aarch64"]
 
 [tool.pixi.pypi-dependencies]
-sox_gpu = { path = ".", editable = true }
+sox_tensorflow = { path = ".", editable = true }
 soundfile = ">=0.12.0"
 soxr = ">=0.3.0"
 

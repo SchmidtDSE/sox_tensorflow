@@ -23,7 +23,7 @@ from PIL import Image
 
 # Add parent directory to path for sox_gpu imports
 sys.path.append(str(Path(__file__).parent.parent))
-from sox_gpu.tfsox import spectrogram_from_flac
+from sox_tensorflow.processor import spectrogram_from_flac
 
 
 def get_audio_duration(flac_path: str) -> float:
