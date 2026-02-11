@@ -9,23 +9,23 @@ Each pair contains the same 12-second audio segment processed with:
 
 ## Results
 
-- **Agreement Rate**: 100.000% (same top prediction)
-- **Same Predictions**: 100/100 segments
-- **Different Predictions**: 0/100 segments
+- **Agreement Rate**: 99.000% (same top prediction)
+- **Same Predictions**: 99/100 segments
+- **Different Predictions**: 1/100 segments
 
 ## Top Prediction Differences
 
-- **Average Probability Difference**: 0.000668
-- **Maximum Probability Difference**: 0.006087
-- **Average Max Vector Difference**: 0.000756
-- **Maximum Vector Difference**: 0.006087
+- **Average Probability Difference**: 0.000121
+- **Maximum Probability Difference**: 0.007923
+- **Average Max Vector Difference**: 0.004079
+- **Maximum Vector Difference**: 0.023506
 
 ## Rank Agreement Analysis (Top-5 Predictions)
 
 Agreement rates for predictions ranked 1-5:
 
-- **Rank 1 Agreement**: 100.000%
-- **Rank 2 Agreement**: 100.000%
+- **Rank 1 Agreement**: 99.000%
+- **Rank 2 Agreement**: 99.000%
 - **Rank 3 Agreement**: 100.000%
 - **Rank 4 Agreement**: 100.000%
 - **Rank 5 Agreement**: 100.000%
@@ -35,22 +35,22 @@ Agreement rates for predictions ranked 1-5:
 ### Sox-Referenced Analysis
 Compares TF predictions against Sox predictions where Sox confidence ≥ 10%:
 
-- **Average high-conf classes per segment**: 1.6
-- **Total high-conf classes analyzed**: 162
-- **Average total difference**: 0.001281
-- **Maximum total difference**: 0.010750
-- **Average max difference**: 0.000738
-- **Maximum max difference**: 0.006087
+- **Average high-conf classes per segment**: 14.5
+- **Total high-conf classes analyzed**: 1452
+- **Average total difference**: 0.012735
+- **Maximum total difference**: 0.075477
+- **Average max difference**: 0.004060
+- **Maximum max difference**: 0.023506
 
 ### TF-Referenced Analysis
 Compares Sox predictions against TF predictions where TF confidence ≥ 10%:
 
-- **Average high-conf classes per segment**: 1.6
-- **Total high-conf classes analyzed**: 162
-- **Average total difference**: 0.001281
-- **Maximum total difference**: 0.010750
-- **Average max difference**: 0.000738
-- **Maximum max difference**: 0.006087
+- **Average high-conf classes per segment**: 14.5
+- **Total high-conf classes analyzed**: 1454
+- **Average total difference**: 0.012804
+- **Maximum total difference**: 0.075477
+- **Average max difference**: 0.004060
+- **Maximum max difference**: 0.023506
 
 ## Summary
 

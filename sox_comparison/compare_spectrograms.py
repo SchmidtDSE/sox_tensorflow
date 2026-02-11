@@ -21,10 +21,11 @@ import numpy as np
 import soundfile as sf
 from PIL import Image
 
-# Add parent directory to path for sox_gpu imports
-sys.path.append(str(Path(__file__).parent.parent))
 from sox_tensorflow.processor import spectrogram_from_flac
 
+# Get the directory containing this script
+SCRIPT_DIR = Path(__file__).parent
+AUDIO_DIR = SCRIPT_DIR.parent.parent.parent / 'audio'
 
 def get_audio_duration(flac_path: str) -> float:
     """
@@ -258,15 +259,17 @@ def compare_spectrograms_for_segment(
 def main():
     """Main comparison function."""
     random.seed(42)  # For reproducible results
-
-    # Audio files
     audio_files = [
-        "/workspace/audio/20230522_000000.flac",
-        "/workspace/audio/20230526_000000.flac"
+        AUDIO_DIR / "20230522_000000.flac",
+        AUDIO_DIR / "20230526_000000.flac"
     ]
 
-    output_dir = Path("/workspace/codebase/sox_gpu/sox_comparison/spectrograms")
-    results_dir = Path("/workspace/codebase/sox_gpu/sox_comparison/results")
+    # Create spectrograms output directory
+    output_dir = SCRIPT_DIR / "spectrograms"
+    output_dir.mkdir(exist_ok=True)
+    # Create results directory relative to script location
+    results_dir = SCRIPT_DIR / "results"
+    results_dir.mkdir(exist_ok=True)
 
     # Results storage
     all_overall_stats = []

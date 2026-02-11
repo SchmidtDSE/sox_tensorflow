@@ -17,9 +17,8 @@ import numpy as np
 import tensorflow as tf
 from PIL import Image
 
-# Add parent directory to path for sox_gpu imports
-sys.path.append(str(Path(__file__).parent.parent))
-
+SCRIPT_DIR = Path(__file__).parent
+MODEL_DIR = SCRIPT_DIR.parent.parent.parent / 'pnw'
 
 def load_pnw_model(model_path: str) -> tf.keras.Model:
     """
@@ -408,12 +407,13 @@ def analyze_results(results: List[Dict]) -> Dict:
 
 def main():
     """Main comparison function."""
+    model_path = MODEL_DIR / "PNW-Cnet_v4_TF.h5"
+    classes_path = MODEL_DIR / "target_classes.csv"
+    spectrograms_dir = SCRIPT_DIR / "spectrograms"
+    results_dir = SCRIPT_DIR / "results"
 
-    # Paths
-    model_path = "/workspace/pnw/PNW-Cnet_v4_TF.h5"
-    classes_path = "/workspace/pnw/target_classes.csv"
-    spectrograms_dir = Path("/workspace/codebase/sox_gpu/sox_comparison/spectrograms")
-    results_dir = Path("/workspace/codebase/sox_gpu/sox_comparison/results")
+    # Create directories if they don't exist
+    results_dir.mkdir(exist_ok=True)
 
     # Load model and classes
     try:
