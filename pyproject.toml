@@ -1,11 +1,25 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "build"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "sox_tensorflow"
 version = "0.0.1"
 readme = "README.md"
+description = "DESCRIPTION"
+license = {text = "CC-BY-4.0"}
+authors = [
+	{name = "Brookie Guzder-Williams", email = "bguzder-williams@berkeley.edu"}
+]
+classifiers = [
+	"Development Status :: 3 - Alpha",
+	"Intended Audience :: Science/Research",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Topic :: Scientific/Engineering"
+]
+requires-python = ">=3.11"
 dependencies = []
 
 [tool.setuptools]
@@ -44,4 +58,15 @@ tf_keras = ">=2.16.0,<3"
 python = ">=3.11,<3.12"
 numpy = ">=1.26.0,<1.27"
 pillow = ">=10.0.0"
+
+
+[tool.pixi.environments]
+default = { features = [] }
+dev = { features = ["dev"] }
+
+[tool.pixi.feature.dev.dependencies]
+twine = "*"
+
+[tool.pixi.feature.dev.pypi-dependencies]
+build = "*"
 h5py = ">=3.15.1,<4"
