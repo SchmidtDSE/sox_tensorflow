@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sox_tensorflow"
-version = "0.1.0"
+version = "0.1.1"
 readme = "README.md"
 description = "tensorflow generation of SOX-style spectrograms on the GPU"
 license = {text = "CC-BY-4.0"}
@@ -22,7 +22,6 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
 	"numpy >=1.26.0,<1.27",
-	"pillow >=10.0.0",
 	"soundfile >=0.13.1,<0.14",
 	"soxr >=0.3.0",
 ]
