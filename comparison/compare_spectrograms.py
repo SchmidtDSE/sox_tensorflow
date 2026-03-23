@@ -38,6 +38,7 @@ from urllib.parse import urlparse
 import click
 import numpy as np
 import soundfile as sf
+import yaml
 from PIL import Image
 
 from sox_tensorflow.processor import spectrogram_from_flac
@@ -47,6 +48,22 @@ from sox_tensorflow.processor import spectrogram_from_flac
 # ---------------------------------------------------------------------------
 
 AUDIO_EXTENSIONS = {".flac", ".wav", ".mp3", ".ogg"}
+
+
+def _s3_download(boto3, bucket: str, key: str, dest: str) -> None:
+    """Download an S3 object, falling back to anonymous access on 4xx errors."""
+    from botocore import UNSIGNED
+    from botocore.config import Config
+    from botocore.exceptions import ClientError
+
+    try:
+        boto3.client("s3").download_file(bucket, key, dest)
+    except ClientError as exc:
+        status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+        if 400 <= status < 500:
+            boto3.client("s3", config=Config(signature_version=UNSIGNED)).download_file(bucket, key, dest)
+        else:
+            raise
 
 
 def _resolve_s3_path(uri: str, tmp_dir: Path) -> List[Path]:
@@ -69,26 +86,47 @@ def _resolve_s3_path(uri: str, tmp_dir: Path) -> List[Path]:
     bucket = parsed.netloc
     key = parsed.path.lstrip("/")
 
-    s3 = boto3.client("s3")
+    from botocore import UNSIGNED
+    from botocore.config import Config
+    from botocore.exceptions import ClientError
+
+    def _make_client():
+        return boto3.client("s3")
+
+    def _make_anon_client():
+        return boto3.client("s3", config=Config(signature_version=UNSIGNED))
+
+    def _list_objects(prefix):
+        """List objects, falling back to anonymous on 4xx."""
+        try:
+            paginator = _make_client().get_paginator("list_objects_v2")
+            pages = list(paginator.paginate(Bucket=bucket, Prefix=prefix))
+        except ClientError as exc:
+            status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+            if 400 <= status < 500:
+                paginator = _make_anon_client().get_paginator("list_objects_v2")
+                pages = list(paginator.paginate(Bucket=bucket, Prefix=prefix))
+            else:
+                raise
+        return pages
 
     # If the key ends with "/" or has no extension treat as a prefix
     if uri.endswith("/") or not Path(key).suffix:
-        paginator = s3.get_paginator("list_objects_v2")
         local_paths: List[Path] = []
-        for page in paginator.paginate(Bucket=bucket, Prefix=key):
+        for page in _list_objects(key):
             for obj in page.get("Contents", []):
                 obj_key = obj["Key"]
                 if Path(obj_key).suffix.lower() in AUDIO_EXTENSIONS:
                     dest = tmp_dir / Path(obj_key).name
                     click.echo(f"  Downloading s3://{bucket}/{obj_key} → {dest}")
-                    s3.download_file(bucket, obj_key, str(dest))
+                    _s3_download(boto3, bucket, obj_key, str(dest))
                     local_paths.append(dest)
         return local_paths
 
     # Single file
     dest = tmp_dir / Path(key).name
     click.echo(f"Downloading s3://{bucket}/{key} → {dest}")
-    s3.download_file(bucket, key, str(dest))
+    _s3_download(boto3, bucket, key, str(dest))
     return [dest]
 
 
@@ -367,11 +405,45 @@ def compare_segment(
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point
+# Config + CLI entry point
 # ---------------------------------------------------------------------------
 
+_SCRIPT_DIR = Path(__file__).parent
+_DEFAULT_CONFIG = _SCRIPT_DIR / "config.yaml"
+
+
+def _apply_config(ctx: click.Context, param: click.Parameter, value: Optional[str]) -> Optional[str]:
+    """Load a YAML config file and apply it as click default_map.
+
+    Runs eagerly so that explicit CLI flags always override config values.
+    If *value* is ``None`` and ``config.yaml`` exists next to the script,
+    that file is used automatically.  The ``audio`` key is skipped here and
+    resolved in :func:`main` (positional arguments cannot use default_map).
+    """
+    config_path = Path(value) if value else _DEFAULT_CONFIG
+    if not config_path.exists():
+        return value
+    with open(config_path) as f:
+        raw = yaml.safe_load(f) or {}
+    normalized = {
+        k.replace("-", "_"): v
+        for k, v in raw.items()
+        if k != "audio" and v is not None
+    }
+    ctx.default_map = normalized
+    return str(config_path)
+
+
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.argument("audio", nargs=-1, required=True)
+@click.option(
+    "--config",
+    default=None,
+    is_eager=True,
+    callback=_apply_config,
+    type=click.Path(dir_okay=False),
+    help=f"YAML config file [default: {_DEFAULT_CONFIG.name} next to this script]",
+)
+@click.argument("audio", nargs=-1, required=False)
 @click.option(
     "--output", "-o",
     default=None,
@@ -390,18 +462,40 @@ def compare_segment(
     show_default=True,
     help="Random seed for reproducible segment selection.",
 )
-def main(audio: Tuple[str, ...], output: Optional[str], n_samples: int, seed: int) -> None:
+def main(
+    config: Optional[str],
+    audio: Tuple[str, ...],
+    output: Optional[str],
+    n_samples: int,
+    seed: int,
+) -> None:
     """Compare sox binary vs sox_tensorflow spectrograms for AUDIO files.
 
-    AUDIO may be one or more local file paths, directories, or S3 URIs
-    (``s3://bucket/key`` or ``s3://bucket/prefix/``).  All FLAC, WAV, MP3,
-    and OGG files are processed.
+    AUDIO may be one or more local file paths, directories, or S3 URIs.
+    If omitted, the ``audio`` list from --config (or config.yaml) is used.
+    All CLI flags override values from the config file.
     """
+    # audio is a positional nargs=-1 argument, so it can't use default_map;
+    # fall back to the 'audio' key in the config file instead.
+    if not audio:
+        cfg_path = Path(config) if config else _DEFAULT_CONFIG
+        if cfg_path.exists():
+            with open(cfg_path) as f:
+                cfg = yaml.safe_load(f) or {}
+            raw_audio = cfg.get("audio", [])
+            if isinstance(raw_audio, str):
+                raw_audio = [raw_audio]
+            audio = tuple(str(a) for a in raw_audio)
+        if not audio:
+            raise click.ClickException(
+                "No audio input. Pass file/directory paths as arguments or set "
+                "'audio' in the config file."
+            )
+
     random.seed(seed)
 
     # Resolve output dirs
-    script_dir = Path(__file__).parent
-    base_out = Path(output) if output else script_dir
+    base_out = Path(output) if output else _SCRIPT_DIR
     results_dir = base_out / "results"
     spectrograms_dir = base_out / "spectrograms"
     results_dir.mkdir(parents=True, exist_ok=True)

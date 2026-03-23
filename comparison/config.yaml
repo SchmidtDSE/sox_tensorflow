@@ -1,0 +1,27 @@
+# comparison/config.yaml
+# Default configuration for compare_spectrograms.py and compare_model.py.
+# All values can be overridden by passing CLI flags directly.
+# Paths can be local or S3 URIs (s3://bucket/key).
+
+## ------------------------------------------------------------------------
+## RUN SETTINGS
+## ------------------------------------------------------------------------
+n_samples: 150
+seed: 42
+output: outputs
+model: s3://dse-soundhub/models/pnw/PNW-Cnet_v4_TF.h5
+target_classes: s3://dse-soundhub/models/pnw/target_classes.csv
+spectrograms: outputs/spectrograms
+
+
+## ------------------------------------------------------------------------
+## AUDIO FILES
+## ------------------------------------------------------------------------
+## -- include all audio files in a bucket or directory
+audio: s3://dse-soundhub/audio/dev/
+## -- specific audio files may also be usec
+# audio:
+#   - s3://dse-soundhub/audio/dev/20230522_000000.flac
+#   - s3://dse-soundhub/audio/dev/20230523_200000.flac
+#   - s3://dse-soundhub/audio/dev/20230526_200000.flac
+## ------------------------------------------------------------------------

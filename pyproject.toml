@@ -26,9 +26,31 @@ dependencies = [
 	"soxr >=0.3.0",
 ]
 
+[project.optional-dependencies]
+# TensorFlow — install the variant for your platform (required to use the package)
+tf-linux = ["tensorflow>=2.16.0"]
+tf-mac   = ["tensorflow-macos>=2.16.0,<2.17.0", "tensorflow-metal>=1.2.0,<2"]
+# Comparison and analysis tools
+comparison = [
+	"click>=8",
+	"pillow>=10",
+	"boto3",
+	"pyyaml",
+	"pandas",
+	"matplotlib",
+	"seaborn",
+	"jupyter",
+	"ipykernel",
+]
+
+[project.scripts]
+compare-spectrograms = "comparison.compare_spectrograms:main"
+compare-model        = "comparison.compare_model:main"
+
 [tool.setuptools]
 packages = [
 	"sox_tensorflow",
+	"comparison",
 ]
 
 [tool.pixi.workspace]
@@ -38,7 +60,7 @@ platforms = ["osx-arm64", "linux-64", "osx-64", "linux-aarch64"]
 [tool.pixi.pypi-dependencies]
 sox_tensorflow = { path = ".", editable = true }
 
-# Dependencies
+# TensorFlow — platform-specific
 [tool.pixi.target.linux-64.pypi-dependencies]
 tensorflow = ">=2.18.0"
 tf_keras = "*"
@@ -61,8 +83,8 @@ python = ">=3.11,<3.12"
 
 [tool.pixi.environments]
 default = { features = [] }
-dev = { features = ["dev"] }
-test = { features = ["test"] }
+dev     = { features = ["dev"] }
+test    = { features = ["test"] }
 
 [tool.pixi.feature.dev.dependencies]
 twine = "*"
@@ -71,12 +93,5 @@ twine = "*"
 build = "*"
 h5py = ">=3.15.1,<4"
 
-[tool.pixi.feature.test.dependencies]
-click = "*"
-pillow = ">=12.1.1,<13"
-boto3 = ">=1.42.71,<2"
-jupyter = ">=1.1.1,<2"
-ipykernel = ">=7.2.0,<8"
-
-[dependency-groups]
-test = ["pandas>=3.0.1,<4", "matplotlib>=3.10.8,<4"]
+[tool.pixi.feature.test.pypi-dependencies]
+sox_tensorflow = { path = ".", extras = ["comparison"], editable = true }

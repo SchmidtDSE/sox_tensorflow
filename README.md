@@ -1,6 +1,8 @@
 # sox_tensorflow
 
-TensorFlow implementation of SoX-style spectrogram generation, with 99.99%+ pixel accuracy against `sox spectrogram` output. Uses TensorFlow operations for GPU acceleration where available.
+TensorFlow implementation of SoX-style spectrogram generation that uses TensorFlow operations for GPU acceleration.
+
+**LINKS**
 
 - sox: https://github.com/chirlu/sox
 - pysox: https://github.com/marl/pysox
@@ -9,6 +11,16 @@ TensorFlow implementation of SoX-style spectrogram generation, with 99.99%+ pixe
 	* https://storage.googleapis.com/dse-soundhub-public/data/sample_audio/20230526_000000.flac
 - pnw-cnet-model: https://storage.googleapis.com/dse-soundhub-public/models/pnw-cnet/PNW-Cnet_v4_TF.h5
 
+Our analysis shows 
+
+- sox_tensorflow spectrograms are 99.81% exact-pixel-match on average relative to sox.
+- Every segment falls within ±2 pixel values
+- The small residual error is concentrated in the darkest pixels (0–10% brightness decile: ~99.3% accuracy) and vanishes almost entirely in brighter regions where the signals live
+- 100% agreement with top-5 ranks agreement when passed through [PNW-Cnet v4 model](https://github.com/zjruff/Shiny_PNW-Cnet)
+- The model-output classes with the largest mean absolute difference are BUVI and PSFL (around 0.0004)
+
+![Pixel accuracy by brightness decile](figures/spectrogram-pixel_acc_brightness.png)
+
 ---
 
 ## QUICK START
@@ -16,25 +28,21 @@ TensorFlow implementation of SoX-style spectrogram generation, with 99.99%+ pixe
 ```python
 import soundfile as sf
 import tensorflow as tf
-from sox_tensorflow import processor
+from sox_tensorflow import spectrogram, spectrogram_from_flac
 
 # From a numpy array
 samples, sr = sf.read('audio.flac', dtype='float64', always_2d=True)
 samples = samples[:, 0]  # mono
-
-pixels = processor.spectrogram(
+pixels = spectrogram(
     audio_array=tf.constant(samples, dtype=tf.float64),
     shape=(257, 1000),
     sample_rate=sr,
     dest='spectrogram.png'
 )
-```
 
-```python
+
 # From a FLAC file directly
-from sox_tensorflow import processor
-
-path = processor.spectrogram_from_flac(
+path = spectrogram_from_flac(
     flac_path='audio.flac',
     shape=(257, 1000),
     duration=12.0,

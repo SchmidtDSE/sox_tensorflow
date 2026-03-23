@@ -25,13 +25,16 @@ Usage examples::
 
 import csv
 import os
+import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 import click
 import numpy as np
 import tensorflow as tf
+import yaml
 from PIL import Image
 
 # ---------------------------------------------------------------------------
@@ -240,6 +243,7 @@ def compare_pair(
         "sox_top_prob": float(sox_probs[np.argmax(sox_probs)]),
         "tf_top_prob": float(tf_probs[np.argmax(tf_probs)]),
         "same_top_prediction": sox_top5[0] == tf_top5[0],
+        **{f"rank_{k}_agreement": sox_top5[k - 1] == tf_top5[k - 1] for k in range(1, 6)},
         "prob_diff_top": float(abs(float(sox_probs[np.argmax(sox_probs)]) - float(tf_probs[np.argmax(tf_probs)]))),
         "max_vector_diff": float(np.max(pred_diff)),
         "mean_vector_diff": float(np.mean(pred_diff)),
@@ -270,28 +274,104 @@ def compare_pair(
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point
+# S3 + config helpers
 # ---------------------------------------------------------------------------
 
 _SCRIPT_DIR = Path(__file__).parent
-_DEFAULT_MODEL   = _SCRIPT_DIR / "pnw" / "PNW-Cnet_v4_TF.h5"
-_DEFAULT_CLASSES = _SCRIPT_DIR / "pnw" / "target_classes.csv"
+_DEFAULT_CONFIG = _SCRIPT_DIR / "config.yaml"
 
+
+def _s3_download(boto3, bucket: str, key: str, dest: str) -> None:
+    """Download an S3 object, falling back to anonymous access on 4xx errors."""
+    from botocore import UNSIGNED
+    from botocore.config import Config
+    from botocore.exceptions import ClientError
+
+    try:
+        boto3.client("s3").download_file(bucket, key, dest)
+    except ClientError as exc:
+        status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+        if 400 <= status < 500:
+            boto3.client("s3", config=Config(signature_version=UNSIGNED)).download_file(bucket, key, dest)
+        else:
+            raise
+
+
+def _download_if_s3(uri: str, tmp_dir: Path) -> Path:
+    """Return a local Path for *uri*, downloading from S3 first if needed.
+
+    Args:
+        uri: Local path string or ``s3://bucket/key`` URI.
+        tmp_dir: Directory to download the file into if it is an S3 URI.
+
+    Returns:
+        Local :class:`~pathlib.Path` to the file.
+
+    Raises:
+        RuntimeError: If boto3 is not installed.
+    """
+    if not uri.startswith("s3://"):
+        return Path(uri)
+    try:
+        import boto3
+    except ImportError as exc:
+        raise RuntimeError("boto3 is required for S3 support: pip install sox_tensorflow[comparison]") from exc
+    parsed = urlparse(uri)
+    dest = tmp_dir / Path(parsed.path).name
+    click.echo(f"  Downloading {uri} → {dest}")
+    _s3_download(boto3, parsed.netloc, parsed.path.lstrip("/"), str(dest))
+    return dest
+
+
+def _apply_config(ctx: click.Context, param: click.Parameter, value: Optional[str]) -> Optional[str]:
+    """Load a YAML config file and apply it as click default_map.
+
+    Runs eagerly so that explicit CLI flags always override config values.
+    If *value* is ``None`` and ``config.yaml`` exists next to the script,
+    that file is used automatically.
+
+    YAML key normalisation:
+    - Hyphens are converted to underscores (``n-samples`` → ``n_samples``).
+    - ``target_classes`` is mapped to ``classes`` to match the CLI param name.
+    """
+    config_path = Path(value) if value else _DEFAULT_CONFIG
+    if not config_path.exists():
+        return value
+    with open(config_path) as f:
+        raw = yaml.safe_load(f) or {}
+    normalized: Dict = {}
+    for k, v in raw.items():
+        k = k.replace("-", "_")
+        if k == "target_classes":
+            k = "classes"
+        if k != "audio" and v is not None:   # audio handled separately (positional arg)
+            normalized[k] = v
+    ctx.default_map = normalized
+    return str(config_path)
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
+    "--config",
+    default=None,
+    is_eager=True,
+    callback=_apply_config,
+    type=click.Path(dir_okay=False),
+    help=f"YAML config file [default: {_DEFAULT_CONFIG.name} next to this script]",
+)
+@click.option(
     "--model", "-m",
-    default=str(_DEFAULT_MODEL),
-    show_default=True,
-    type=click.Path(exists=True, dir_okay=False),
-    help="Path to PNW-Cnet_v4_TF.h5 model file.",
+    default=None,
+    help="Path or S3 URI to model .h5 file.",
 )
 @click.option(
     "--classes", "-c",
-    default=str(_DEFAULT_CLASSES),
-    show_default=True,
-    type=click.Path(exists=True, dir_okay=False),
-    help="Path to target_classes.csv.",
+    default=None,
+    help="Path or S3 URI to target_classes.csv (YAML key: target_classes).",
 )
 @click.option(
     "--spectrograms", "-s",
@@ -307,33 +387,44 @@ _DEFAULT_CLASSES = _SCRIPT_DIR / "pnw" / "target_classes.csv"
     help="Output directory for results [default: <script_dir>/results]",
 )
 def main(
-    model: str,
-    classes: str,
+    config: Optional[str],
+    model: Optional[str],
+    classes: Optional[str],
     spectrograms: Optional[str],
     output: Optional[str],
 ) -> None:
-    """Compare PNW-Cnet predictions on sox vs sox_tensorflow spectrogram pairs.
+    """Compare model predictions on sox vs sox_tensorflow spectrogram pairs.
 
-    Reads matched .sox.png / .tf.png files from the SPECTROGRAMS directory
-    (default: ./spectrograms, produced by compare_spectrograms_cli.py).
+    Reads matched .sox.png / .tf.png files from the SPECTROGRAMS directory.
+    All options can be set via --config (YAML); CLI flags override the file.
     """
+    # Apply hard-coded fallbacks for anything not set by config or CLI
+    model   = model   or str(_SCRIPT_DIR / "models" / "PNW-Cnet_v4_TF.h5")
+    classes = classes or str(_SCRIPT_DIR / "models" / "target_classes.csv")
+
     spectrograms_dir = Path(spectrograms) if spectrograms else _SCRIPT_DIR / "spectrograms"
-    results_dir = Path(output) if output else _SCRIPT_DIR / "results"
+    base_out = Path(output) if output else _SCRIPT_DIR
+    results_dir = base_out / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
 
     if not spectrograms_dir.is_dir():
         raise click.ClickException(f"Spectrograms directory not found: {spectrograms_dir}")
 
+    # Resolve S3 URIs for model and classes to local paths
+    tmp_dir = Path(tempfile.mkdtemp(prefix="sox_cmp_model_"))
+    model_path   = _download_if_s3(model,   tmp_dir)
+    classes_path = _download_if_s3(classes, tmp_dir)
+
     # Load model and class map
     try:
-        tf_model = load_pnw_model(Path(model))
+        tf_model = load_pnw_model(model_path)
         # Warm-up inference pass
         _ = tf_model(np.zeros((1, 257, 1000, 1), dtype=np.float32), training=False)
         click.echo(f"  Output shape: {_.shape}")
     except Exception as exc:
         raise click.ClickException(f"Failed to load model: {exc}") from exc
 
-    class_map = load_target_classes(Path(classes))
+    class_map = load_target_classes(classes_path)
     click.echo(f"Loaded {len(class_map)} classes.")
 
     # Find matched spectrogram pairs
