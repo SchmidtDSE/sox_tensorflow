@@ -4,7 +4,6 @@
 
 The resulting spectrograms are close, though not identical to the SoX spectrograms.  Here we look at how closely the tf-sox-spectrograms to match sox-spectrograms. We do this comparison, both overall and at different levels of brightness. We then look at the differences when spectorgrams are passed through a model.
 
-
 ---
 
 ## Results — PNW-OWL reference run

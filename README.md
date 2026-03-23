@@ -19,7 +19,9 @@ Our analysis shows
 - 100% agreement with top-5 ranks agreement when passed through [PNW-Cnet v4 model](https://github.com/zjruff/Shiny_PNW-Cnet)
 - The model-output classes with the largest mean absolute difference are BUVI and PSFL (around 0.0004)
 
-![Pixel accuracy by brightness decile](figures/spectrogram-pixel_acc_brightness.png)
+![Pixel accuracy by brightness decile](comparison/figures/spectrogram-pixel_acc_brightness.png)
+
+For more details see the scripts and notebooks found in the [comparison folder](comparison/).
 
 ---
 
