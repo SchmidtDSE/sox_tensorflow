@@ -8,7 +8,7 @@ The resulting spectrograms are close, though not identical to the SoX spectrogra
 
 ## Results — PNW-OWL reference run
 
-The reference run used 150 12-second segments from each of the 10-audio files contained at s3://dse-soundhub/audio/dev.  For model-output comparisons the [PNW-Cnet v4 model](https://github.com/zjruff/Shiny_PNW-Cnet) was used.
+The reference run used 150 12-second segments from each of the 10-audio files contained at s3://dse-soundhub/public/audio/dev.  For model-output comparisons the [PNW-Cnet v4 model](https://github.com/zjruff/Shiny_PNW-Cnet) was used.
 
 - sox_tensorflow spectrograms are 99.81% exact-pixel-match on average relative to sox.
 - Every segment falls within ±2 pixel values

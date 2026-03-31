@@ -7,9 +7,9 @@ TensorFlow implementation of SoX-style spectrogram generation that uses TensorFl
 - sox: https://github.com/chirlu/sox
 - pysox: https://github.com/marl/pysox
 - audio samples:
-	* https://storage.googleapis.com/dse-soundhub-public/data/sample_audio/20230522_000000.flac
-	* https://storage.googleapis.com/dse-soundhub-public/data/sample_audio/20230526_000000.flac
-- pnw-cnet-model: https://storage.googleapis.com/dse-soundhub-public/models/pnw-cnet/PNW-Cnet_v4_TF.h5
+    * https://dse-soundhub.s3.us-west-2.amazonaws.com/public/audio/dev/20230522_000000.flac
+    * https://dse-soundhub.s3.us-west-2.amazonaws.com/public/audio/dev/20230526_000000.flac
+- pnw-cnet-model: https://dse-soundhub.s3.us-west-2.amazonaws.com/public/models/pnw/PNW-Cnet_v4_TF.h5
 
 Our analysis shows 
 

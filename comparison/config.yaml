@@ -9,8 +9,8 @@
 n_samples: 150
 seed: 42
 output: outputs
-model: s3://dse-soundhub/models/pnw/PNW-Cnet_v4_TF.h5
-target_classes: s3://dse-soundhub/models/pnw/target_classes.csv
+model: s3://dse-soundhub/public/models/pnw/PNW-Cnet_v4_TF.h5
+target_classes: s3://dse-soundhub/public/models/pnw/target_classes.csv
 spectrograms: outputs/spectrograms
 
 
@@ -18,10 +18,10 @@ spectrograms: outputs/spectrograms
 ## AUDIO FILES
 ## ------------------------------------------------------------------------
 ## -- include all audio files in a bucket or directory
-audio: s3://dse-soundhub/audio/dev/
+audio: s3://dse-soundhub/public/audio/dev/
 ## -- specific audio files may also be usec
 # audio:
-#   - s3://dse-soundhub/audio/dev/20230522_000000.flac
-#   - s3://dse-soundhub/audio/dev/20230523_200000.flac
-#   - s3://dse-soundhub/audio/dev/20230526_200000.flac
+#   - s3://dse-soundhub/public/audio/dev/20230522_000000.flac
+#   - s3://dse-soundhub/public/audio/dev/20230523_200000.flac
+#   - s3://dse-soundhub/public/audio/dev/20230526_200000.flac
 ## ------------------------------------------------------------------------
