@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sox_tensorflow"
-version = "0.1.2"
+version = "0.1.3"
 readme = "README.md"
 description = "tensorflow generation of SOX-style spectrograms on the GPU"
 license = {text = "CC-BY-4.0"}
