@@ -21,7 +21,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-	"numpy >=1.26.0,<1.27",
+	"numpy >=1.26.0,<3",
 	"soundfile >=0.13.1,<0.14",
 	"soxr >=0.3.0",
 ]
@@ -29,7 +29,8 @@ dependencies = [
 [project.optional-dependencies]
 # TensorFlow — install the variant for your platform (required to use the package)
 tf-linux = ["tensorflow>=2.16.0"]
-tf-mac   = ["tensorflow-macos>=2.16.0,<2.17.0", "tensorflow-metal>=1.2.0,<2"]
+# tensorflow-metal 1.2.0 fails to load on TF >=2.20
+tf-mac   = ["tensorflow>=2.18.0,<2.20.0", "tensorflow-metal>=1.2.0,<2"]
 # Comparison and analysis tools
 comparison = [
 	"click>=8",
@@ -76,9 +77,10 @@ tensorflow = ">=2.18.0"
 tf_keras = "*"
 
 [tool.pixi.target.osx-arm64.pypi-dependencies]
-tensorflow-macos = ">=2.16.0,<2.17.0"
+# tensorflow-metal 1.2.0 fails to load on TF >=2.20
+tensorflow = ">=2.18.0,<2.20.0"
 tensorflow-metal = ">=1.2.0,<2"
-tf_keras = ">=2.16.0,<3"
+tf_keras = ">=2.18.0,<2.20.0"
 
 [tool.pixi.dependencies]
 python = ">=3.11,<3.12"
