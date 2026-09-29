@@ -95,6 +95,8 @@ The notebook reads paths from `config.yaml` automatically — just set
 | `config.yaml` | Default configuration for both scripts |
 | `compare_spectrograms.py` | Generates spectrogram pairs (sox + sox_tensorflow) and compares pixel-by-pixel |
 | `compare_model.py` | Runs a model on existing spectrogram pairs and compares predictions |
+| `parity_check.sh` | Runs both scripts in the pixi env of a base git ref (default `main`) and of the current tree, then plots them side by side — e.g. to show a dependency bump doesn't change output. `comparison/parity_check.sh -h` for options |
+| `plot_parity.py` | Plots the before/after figure from two `parity_check.sh` runs |
 | `analysis.pnw-owl.ipynb` | Reference analysis notebook for the PNW-OWL model |
 | `models/README.md` | PNW-Cnet v4 citation and class list |
 
